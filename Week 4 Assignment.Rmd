@@ -1,0 +1,103 @@
+---
+title: "Reproducible Research - NOAA Storm Database"
+author: "EJ"
+date: "5/26/2020"
+output: html_document
+---
+
+## Questions to answer
+1. Across the United States, which types of events are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
+## Load Data into R
+Load the dataset into R and view basic data information
+
+```{r}
+StormData <- read.csv("repdata_data_StormData.csv")
+dim(data)
+colnames(data)
+```
+
+## Clean Data
+
+Event titles have multinames for the same event. Clearn data to have unified event names.
+
+```{r}
+StormData$EVTYPE <- as.character(StormData$EVTYPE)
+StormData$EVTYPE[grepl("/|&|and", StormData$EVTYPE,ignore.case = TRUE)] <- "Multiple Event"
+StormData$EVTYPE[grepl("volc", StormData$EVTYPE,ignore.case = TRUE)] <- "Volcano"
+StormData$EVTYPE[grepl("wind|wnd", StormData$EVTYPE,ignore.case = TRUE)] <- "Wind"
+StormData$EVTYPE[grepl("funnel|tornado", StormData$EVTYPE,ignore.case = TRUE)] <- "Tornado"
+StormData$EVTYPE[grepl("glaze", StormData$EVTYPE,ignore.case = TRUE)] <- "Glaze"
+StormData$EVTYPE[grepl("hail", StormData$EVTYPE,ignore.case = TRUE)] <- "Hail"
+StormData$EVTYPE[grepl("dust", StormData$EVTYPE,ignore.case = TRUE)]  <- "Dust"
+StormData$EVTYPE[grepl("flood", StormData$EVTYPE,ignore.case = TRUE)] <- "Flood"
+StormData$EVTYPE[grepl("ic(e|y)", StormData$EVTYPE,ignore.case = TRUE)] <- "Ice"
+StormData$EVTYPE[grepl("fire|smoke", StormData$EVTYPE,ignore.case = TRUE)] <- "Fire"
+StormData$EVTYPE[grepl("thunder", StormData$EVTYPE,ignore.case = TRUE)] <- "Thunder Storm"
+StormData$EVTYPE[grepl("slide|eros", StormData$EVTYPE,ignore.case = TRUE)] <- "Erosion"
+StormData$EVTYPE[grepl("rain", StormData$EVTYPE,ignore.case = TRUE)] <- "Rain"
+StormData$EVTYPE[grepl("freez|cold|snow|chill|winter", StormData$EVTYPE,ignore.case = TRUE)] <- "Cold Weather"
+StormData$EVTYPE[grepl("TROPICAL.STORM", StormData$EVTYPE,ignore.case = TRUE)] <- "Tropical Store"
+StormData$EVTYPE[grepl("heat", StormData$EVTYPE,ignore.case = TRUE)] <- "Heat"
+StormData$EVTYPE[grepl("(hurri|opal)", StormData$EVTYPE,ignore.case = TRUE)] <- "Hurricane"
+```
+
+## Isolate Needed Data
+
+Create two unique sub-datasets for health and economy
+
+```{r}
+StormData_Health <- StormData[,(c(8,23:24))]
+StormData_Economy <- StormData[,c(8,25:28)]
+colnames(StormData_Health)
+colnames(StormData_Economy)
+```
+
+## Focus on health data
+
+Continue to clean data
+
+```{r}
+library(dplyr)
+StormData_Health_Aggre <- aggregate(cbind(FATALITIES,INJURIES) ~ EVTYPE, data = StormData_Health, sum, na.rm=TRUE)
+StormData_Health_Aggre <- arrange(StormData_Health_Aggre, desc(FATALITIES+INJURIES))
+StormData_Health_Aggre_top <- StormData_Health_Aggre[1:10,]
+```
+
+Visualize results for health data
+
+```{r}
+head(StormData_Health_Aggre_top)
+library(ggplot2)
+qplot(EVTYPE, FATALITIES+INJURIES, data = StormData_Health_Aggre_top, main = "Impact of Weather Events on Health Damange")
+```
+
+## Focus on economy data
+
+Clean economy data for analysis
+
+```{r}
+StormData_Economy$PROPDMGCALC [StormData_Economy$PROPDMG==0] <- 0  
+StormData_Economy$CROPDMGCALC [StormData_Economy$CROPDMG==0] <- 0 
+StormData_Economy$PROPDMGCALC [StormData_Economy$PROPDMGEXP=="H"| StormData_Economy$PROPDMGEXP=="h"]<- StormData_Economy$PROPDMG[StormData_Economy$PROPDMGEXP=="H"|StormData_Economy$PROPDMGEXP=="h"]*100
+StormData_Economy$CROPDMGCALC [StormData_Economy$CROPDMGEXP=="H"| StormData_Economy$CROPDMGEXP=="h"]<- StormData_Economy$CROPDMG[StormData_Economy$CROPDMGEXP=="H"|StormData_Economy$CROPDMGEXP=="h"]*100
+StormData_Economy$PROPDMGCALC [StormData_Economy$PROPDMGEXP=="K"| StormData_Economy$PROPDMGEXP=="k"]<- StormData_Economy$PROPDMG[StormData_Economy$PROPDMGEXP=="K"|StormData_Economy$PROPDMGEXP=="k"]*1000
+StormData_Economy$CROPDMGCALC [StormData_Economy$CROPDMGEXP=="K"| StormData_Economy$CROPDMGEXP=="k"]<- StormData_Economy$CROPDMG[StormData_Economy$CROPDMGEXP=="K"|StormData_Economy$CROPDMGEXP=="k"]*1000
+StormData_Economy$PROPDMGCALC [StormData_Economy$PROPDMGEXP=="M"| StormData_Economy$PROPDMGEXP=="m"]<- StormData_Economy$PROPDMG[StormData_Economy$PROPDMGEXP=="M"|StormData_Economy$PROPDMGEXP=="m"]*1000000
+StormData_Economy$CROPDMGCALC [StormData_Economy$CROPDMGEXP=="M"| StormData_Economy$CROPDMGEXP=="m"]<- StormData_Economy$CROPDMG[StormData_Economy$CROPDMGEXP=="M"|StormData_Economy$CROPDMGEXP=="m"]*1000000
+StormData_Economy$PROPDMGCALC [StormData_Economy$PROPDMGEXP=="B"| StormData_Economy$PROPDMGEXP=="b"]<- StormData_Economy$PROPDMG[StormData_Economy$PROPDMGEXP=="B"|StormData_Economy$PROPDMGEXP=="b"]*1000000000
+StormData_Economy$CROPDMGCALC [StormData_Economy$CROPDMGEXP=="B"| StormData_Economy$CROPDMGEXP=="b"]<- StormData_Economy$CROPDMG[StormData_Economy$CROPDMGEXP=="B"|StormData_Economy$CROPDMGEXP=="b"]*1000000000
+
+StormData_Economy_Aggre <- aggregate(cbind(PROPDMGCALC,CROPDMGCALC)~EVTYPE, data = StormData_Economy, sum, na.rm=TRUE)
+StormData_Economy_Aggre <- arrange(StormData_Economy_Aggre, desc(PROPDMGCALC+CROPDMGCALC))
+
+StormData_Economy_Aggre_top <- StormData_Economy_Aggre[1:10,]
+```
+
+Visualize results for health data
+
+```{r}
+head(StormData_Economy_Aggre_top)
+qplot(EVTYPE, PROPDMGCALC+CROPDMGCALC, data = StormData_Economy_Aggre_top, main = "Impact of Weather Events on Economic Damange")
+```
